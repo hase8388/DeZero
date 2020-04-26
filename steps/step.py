@@ -1,15 +1,20 @@
 """
-https://github.com/oreilly-japan/deep-learning-from-scratch-3/blob/master/steps/step07.py
-https://github.com/oreilly-japan/deep-learning-from-scratch-3/blob/master/steps/step08.py
+https://github.com/oreilly-japan/deep-learning-from-scratch-3/blob/master/steps/
 """
 
 #%%
 import numpy as np
 
 
+def as_array(x):
+    return np.array(x) if np.isscalar(x) else x
+
+
 #%%
 class Variable:
     def __init__(self, data):
+        if (data is not None) and not (isinstance(data, np.ndarray)):
+            raise TypeError(f"{type(data)} is not supported.")
         self.data = data
         self.grad = None
         self.creator = None
@@ -17,47 +22,70 @@ class Variable:
     def set_creator(self, func):
         self.creator = func
 
-    # 使わない、再帰呼び出しの場合
-    def backward_(self):
-        f = self.creator
-        if f is not None:
-            x = f.input
-            # 逆電版させて、inputのgradをset
-            x.grad = f.backward(self.grad)
-            # 再帰呼び出し
-            x.backward_()
-
     def backward(self,):
+        self.grad = np.ones_like(self.data) if self.grad is None else self.grad
+
         funcs = [self.creator]
         while funcs:
             f = funcs.pop()
-            x, y = f.input, f.output
-            x.grad = f.backward(y.grad)
-            if x.creator is not None:
-                funcs.append(x.creator)
+            gys = [output.grad for output in f.outputs]
+            gxs = f.backward(*gys)
+            if not isinstance(gxs, tuple):
+                gxs = (gxs,)
+
+            for x, gx in zip(f.inputs, gxs):
+                if x.grad is None:
+                    x.grad = gx
+                # すでにsetされている場合、加算する
+
+                else:
+                    x.grad = gx + x.grad
+
+                if x.creator is not None:
+                    funcs.append(x.creator)
+
+    def clearngrad(self):
+        self.grad = None
 
 
 class Function:
     def __init__(self):
-        self.input = None
-        self.output = None
+        self.inputs = None
+        self.outputs = None
 
-    def __call__(self, input):
-        x = input.data
-        y = self.forward(x)
+    def __call__(self, *inputs):
+        xs = [x.data for x in inputs]
+        ys = self.forward(*xs)
+        if not isinstance(ys, tuple):
+            ys = (ys,)
 
-        self.input = input
-        output = Variable(y)
-        output.set_creator(self)
-        self.output = output
+        self.inputs = inputs
+        outputs = [Variable(as_array(y)) for y in ys]
+        for output in outputs:
+            output.set_creator(self)
+        self.outputs = outputs
 
-        return output
+        return outputs if len(outputs) > 1 else outputs[0]
 
     def forward(self, x):
         raise NotImplementedError()
 
     def backward(self, gy):
         raise NotImplementedError()
+
+
+#%%
+class Add(Function):
+    def forward(self, x0, x1):
+        y = x0 + x1
+        return y
+
+    def backward(self, gy):
+        return (gy, gy)
+
+
+def add(x0, x1):
+    return Add()(x0, x1)
 
 
 # %%
@@ -67,50 +95,38 @@ class Square(Function):
         return y
 
     def backward(self, gy):
-        x = self.input.data
+        x = self.inputs[0].data
         gx = 2 * x * gy
 
         return gx
 
 
-class Exp(Function):
-    def forward(self, x):
-        y = np.exp(x)
-        return y
+def square(x):
+    return Square()(x)
 
-    def backward(self, gy):
-        x = self.input.data
-        gx = np.exp(x) * gy
-
-        return gx
-
-
-#%%%
-A = Square()
-B = Exp()
-C = Square()
-
-x = Variable(np.array(0.5))
 
 #%%
-# 順伝搬
-a = A(x)
-b = B(a)
-y = C(b)
-print(y.data)
+x = Variable(np.array(2.0))
+y = Variable(np.array(3.0))
+z = add(square(x), square(y))
+z.backward()
+print(z.data)
+print(x.grad)
+print(y.grad)
+
+#%%
+z = add(x, x)
+z.backward()
+print(x.grad)
+x.clearngrad()
+
+z2 = add(add(x, x), x)
+z2.backward()
+print(x.grad)
+x.clearngrad()
+
 
 # %%
-# 逆伝搬(再帰関数)
-y.grad = np.array(1.0)
-y.backward_()
-print(x.grad)
-
-
-# %%
-# 逆伝搬(改良版)
-y.grad = np.array(1.0)
-y.backward_()
-print(x.grad)
 
 
 # %%
