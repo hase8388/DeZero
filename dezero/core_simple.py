@@ -2,7 +2,6 @@
 https://github.com/oreilly-japan/deep-learning-from-scratch-3/blob/master/steps/
 """
 
-#%%
 import numpy as np
 import weakref
 import contextlib
@@ -152,7 +151,7 @@ def div(x0, x1):
 
 
 class Pow(Function):
-    def __init__(self, x):
+    def __init__(self, c):
         self.c = c
 
     def forward(self, x):
@@ -160,14 +159,13 @@ class Pow(Function):
 
     def backward(self, gy):
         x = self.inputs[0].data
-        return self.c(x) ** (self.c - 1) * gy
+        return self.c * (x ** (self.c - 1)) * gy
 
 
 def pow(x, c):
     return Pow(c)(x)
 
 
-#%%
 class Variable:
     # 演算子の関数を優先的に呼ぶために、大きな数に設定する
     __array_priority__ = 200
@@ -193,18 +191,6 @@ class Variable:
             return "variable(None)"
         p = str(self.data).replace("\n", "\n" + " " * 9)
         return f"variable({p})"
-
-    def __mul__(self, other):
-        return mul(self, other)
-
-    def __rmul__(self, other):
-        return mul(self, other)
-
-    def __add__(self, other):
-        return add(self, other)
-
-    def __radd__(self, other):
-        return add(self, other)
 
     def set_creator(self, func):
         self.creator = func
@@ -252,12 +238,14 @@ class Variable:
         self.grad = None
 
 
-# %%
-x = Variable(np.array(2.0))
-# %%
-
-
-# %%
-
-
-# %%
+def setup_variable():
+    Variable.__add__ = add
+    Variable.__radd__ = add
+    Variable.__mul__ = mul
+    Variable.__rmul__ = mul
+    Variable.__neg__ = neg
+    Variable.__sub__ = sub
+    Variable.__rsub__ = sub
+    Variable.__truediv__ = div
+    Variable.__rtruediv__ = div
+    Variable.__pow__ = pow
