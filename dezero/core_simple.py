@@ -79,6 +79,7 @@ class Add(Function):
 
 
 def add(x0, x1):
+    x1 = as_array(x1)
     return Add()(x0, x1)
 
 
@@ -108,6 +109,7 @@ class Mul(Function):
 
 
 def mul(x0, x1):
+    x1 = as_array(x1)
     return Mul()(x0, x1)
 
 
@@ -132,6 +134,7 @@ class Sub(Function):
 
 
 def sub(x0, x1):
+    x1 = as_array(x1)
     return Sub()(x0, x1)
 
 
@@ -147,6 +150,7 @@ class Div(Function):
 
 
 def div(x0, x1):
+    x1 = as_array(x1)
     return Div()(x0, x1)
 
 
@@ -172,6 +176,7 @@ class Variable:
 
     def __init__(self, data, name=None):
         if (data is not None) and not (isinstance(data, np.ndarray)):
+            print(data)
             raise TypeError(f"{type(data)} is not supported.")
         self.data = data
         self.name = name
@@ -182,6 +187,14 @@ class Variable:
     @property
     def shape(self):
         return self.data.shape
+
+    @property
+    def dtype(self):
+        return self.data.dtype
+
+    @property
+    def ndim(self):
+        return self.data.ndim
 
     def __len__(self):
         return len(self.data)
